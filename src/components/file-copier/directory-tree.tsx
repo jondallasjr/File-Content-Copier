@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronDown, ChevronRight, CheckSquare, Square, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckSquare, Square, Loader2 } from 'lucide-react';
 import { FileInfo } from '@/types/files';
 
 interface TreeNode {
@@ -15,6 +15,7 @@ interface DirectoryTreeProps {
   selectedFiles: Set<string>;
   onToggleDirectory: (directory: string) => void;
   onToggleFile: (path: string) => void;
+  processingFiles: Set<string>;
 }
 
 function buildDirectoryTree(files: FileInfo[]): TreeNode {
@@ -64,7 +65,8 @@ function DirectoryTreeNode({
   onToggleFile,
   expanded,
   onToggleExpand,
-  searchQuery
+  searchQuery,
+  processingFiles
 }: { 
   node: TreeNode;
   level?: number;
@@ -74,15 +76,18 @@ function DirectoryTreeNode({
   expanded: Set<string>;
   onToggleExpand: (path: string) => void;
   searchQuery: string;
+  processingFiles: Set<string>;
 }) {
+  // Calculate if all files in this directory and subdirectories are selected
   const allSelected = node.fileCount > 0 && 
-                     node.files.every(f => selectedFiles.has(f.path)) &&
+                     node.files.filter(f => f.isText).every(f => selectedFiles.has(f.path)) &&
                      Array.from(node.children.values()).every(child => 
-                       child.files.every(f => selectedFiles.has(f.path)));
+                       child.files.filter(f => f.isText).every(f => selectedFiles.has(f.path)));
                        
-  const someSelected = node.files.some(f => selectedFiles.has(f.path)) ||
+  // Calculate if some files are selected
+  const someSelected = node.files.some(f => f.isText && selectedFiles.has(f.path)) ||
                       Array.from(node.children.values()).some(child => 
-                        child.files.some(f => selectedFiles.has(f.path)));
+                        child.files.some(f => f.isText && selectedFiles.has(f.path)));
                         
   const hasChildren = node.children.size > 0 || node.files.length > 0;
   const isExpanded = expanded.has(node.path);
@@ -93,6 +98,9 @@ function DirectoryTreeNode({
     node.files.some(f => f.path.toLowerCase().includes(searchQuery.toLowerCase()));
 
   if (!matchesSearch) return null;
+
+  // Count text files
+  const textFileCount = node.files.filter(f => f.isText).length;
 
   return (
     <div>
@@ -105,7 +113,9 @@ function DirectoryTreeNode({
           {/* Expand/Collapse control */}
           <div 
             onClick={() => hasChildren && onToggleExpand(node.path)}
-            className={`w-8 h-8 flex items-center justify-center ${hasChildren ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded' : ''}`}
+            className={`w-8 h-8 flex items-center justify-center ${
+              hasChildren ? 'cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700 rounded' : ''
+            }`}
           >
             {hasChildren && (
               isExpanded ? 
@@ -139,7 +149,7 @@ function DirectoryTreeNode({
           
           {/* File count */}
           <span className="ml-auto text-gray-400 text-sm pr-4">
-            ({node.fileCount})
+            ({textFileCount} text file{textFileCount !== 1 ? 's' : ''})
           </span>
         </div>
       )}
@@ -153,23 +163,35 @@ function DirectoryTreeNode({
             .map(file => (
               <div
                 key={file.path}
-                className="flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-left"
+                className={`flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-left ${
+                  !file.isText ? 'opacity-60' : ''
+                }`}
                 style={{ paddingLeft: `${(level + 1) * 16}px` }}
               >
                 <div className="w-8 h-8" /> {/* Spacing for alignment */}
                 <div
-                  onClick={() => onToggleFile(file.path)}
-                  className="cursor-pointer p-2"
+                  onClick={() => file.isText && onToggleFile(file.path)}
+                  className={`p-2 ${file.isText ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                 >
-                  {selectedFiles.has(file.path) ? (
+                  {processingFiles.has(file.path) ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                  ) : file.isText && selectedFiles.has(file.path) ? (
                     <CheckSquare className="w-4 h-4 text-blue-500" />
                   ) : (
                     <Square className="w-4 h-4 text-gray-400" />
                   )}
                 </div>
-                <span className="py-2 font-mono text-sm truncate">
+                <span className={`py-2 text-sm truncate ${
+                  file.isText ? 'font-mono' : 'text-gray-400'
+                }`}>
                   {file.name}
+                  {!file.isText && ' (non-text)'}
                 </span>
+                {file.size && (
+                  <span className="ml-auto text-gray-400 text-xs pr-4">
+                    {(file.size / 1024).toFixed(1)}KB
+                  </span>
+                )}
               </div>
             ))}
 
@@ -185,6 +207,7 @@ function DirectoryTreeNode({
               expanded={expanded}
               onToggleExpand={onToggleExpand}
               searchQuery={searchQuery}
+              processingFiles={processingFiles}
             />
           ))}
         </div>
@@ -193,8 +216,14 @@ function DirectoryTreeNode({
   );
 }
 
-export function DirectoryTree({ files, selectedFiles, onToggleDirectory, onToggleFile }: DirectoryTreeProps) {
-  const [expanded, setExpanded] = React.useState<Set<string>>(new Set(['/']));
+export function DirectoryTree({ 
+  files, 
+  selectedFiles, 
+  onToggleDirectory, 
+  onToggleFile,
+  processingFiles 
+}: DirectoryTreeProps) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
   const [searchQuery, setSearchQuery] = useState('');
   const tree = useMemo(() => buildDirectoryTree(files), [files]);
 
@@ -211,31 +240,17 @@ export function DirectoryTree({ files, selectedFiles, onToggleDirectory, onToggl
   };
 
   return (
-    <div className="space-y-4">
-      {/* Search Box */}
-      <div className="relative mb-4">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-        <input
-          type="text"
-          placeholder="Search files..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      {/* Tree Structure */}
-      <div className="space-y-1 max-h-[calc(100vh-400px)] overflow-y-auto">
-        <DirectoryTreeNode
-          node={tree}
-          selectedFiles={selectedFiles}
-          onToggleDirectory={onToggleDirectory}
-          onToggleFile={onToggleFile}
-          expanded={expanded}
-          onToggleExpand={handleToggleExpand}
-          searchQuery={searchQuery}
-        />
-      </div>
+    <div className="space-y-1 max-h-[calc(100vh-400px)] overflow-y-auto">
+      <DirectoryTreeNode
+        node={tree}
+        selectedFiles={selectedFiles}
+        onToggleDirectory={onToggleDirectory}
+        onToggleFile={onToggleFile}
+        expanded={expanded}
+        onToggleExpand={handleToggleExpand}
+        searchQuery={searchQuery}
+        processingFiles={processingFiles}
+      />
     </div>
   );
 }

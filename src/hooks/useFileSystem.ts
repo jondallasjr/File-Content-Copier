@@ -1,17 +1,18 @@
-import { useState, useCallback, useEffect } from 'react';
-import { FileInfo, Status, ExtensionMap } from '@/types/files';
+import { useState, useCallback } from 'react';
+import { FileInfo, Status } from '@/types/files';
+import { isTextFile, formatFileContent, clearTextFileCache } from '@/lib/file-utils';
 
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB size limit
-const STATUS_TIMEOUT = 3000; // Configurable status message timeout
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB size limit
+const STATUS_TIMEOUT = 3000;
 
 export function useFileSystem() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [extensions, setExtensions] = useState<ExtensionMap>(new Map());
   const [status, setStatus] = useState<Status>({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
   const [currentDirectory, setCurrentDirectory] = useState<string>('/');
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
+  const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
 
   const updateStatus = useCallback((message: string, type: Status['type'] = 'info') => {
     setStatus({ message, type });
@@ -46,8 +47,7 @@ export function useFileSystem() {
         const relativePath = file.path.slice(dirPath.length + 1);
         const parts = relativePath.split('/');
         if (parts.length > 1) {
-          const subdir = dirPath + '/' + parts[0];
-          dirs.add(subdir);
+          dirs.add(dirPath + '/' + parts[0]);
         }
       }
     });
@@ -57,18 +57,19 @@ export function useFileSystem() {
   const handleFolderSelect = useCallback(async () => {
     try {
       setLoading(true);
+      clearTextFileCache(); // Clear the cache when selecting a new folder
       const dirHandle = await window.showDirectoryPicker();
       const newFiles: FileInfo[] = [];
-      const newExtensions = new Map<string, number>();
       const skippedFiles: string[] = [];
+      setProcessingFiles(new Set());
 
       const processDirectory = async (handle: FileSystemDirectoryHandle, path = '') => {
         for await (const entry of handle.values()) {
           const entryPath = path ? `${path}/${entry.name}` : entry.name;
           
           if (entry.kind === 'file') {
-            const extension = entry.name.split('.').pop() || '';
             const fileHandle = entry as FileSystemFileHandle;
+            setProcessingFiles(prev => new Set(prev).add(entryPath));
             
             try {
               const file = await fileHandle.getFile();
@@ -76,20 +77,28 @@ export function useFileSystem() {
                 skippedFiles.push(`${entryPath} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
                 continue;
               }
+
+              // Check if it's a text file
+              const isText = await isTextFile(fileHandle);
               
+              const extension = entry.name.split('.').pop() || '';
               newFiles.push({
                 name: entry.name,
                 path: entryPath,
                 handle: fileHandle,
                 extension,
-                size: file.size
+                size: file.size,
+                isText
               });
-              
-              const count = newExtensions.get(extension) || 0;
-              newExtensions.set(extension, count + 1);
             } catch (error) {
               console.error(`Error processing file ${entryPath}:`, error);
               skippedFiles.push(entryPath);
+            } finally {
+              setProcessingFiles(prev => {
+                const next = new Set(prev);
+                next.delete(entryPath);
+                return next;
+              });
             }
           } else if (entry.kind === 'directory') {
             const newHandle = await handle.getDirectoryHandle(entry.name);
@@ -100,22 +109,24 @@ export function useFileSystem() {
 
       await processDirectory(dirHandle);
       setFiles(newFiles);
-      setExtensions(newExtensions);
       setSelectedFiles(new Set());
       setDirectoryHandle(dirHandle);
       setCurrentDirectory('/');
-      
-      try {
-        localStorage.setItem('lastDirectoryHandle', 'true');
-      } catch (error) {
-        console.error('Error saving directory handle:', error);
-      }
 
+      const textFileCount = newFiles.filter(f => f.isText).length;
+      const nonTextFileCount = newFiles.length - textFileCount;
+      
       if (skippedFiles.length > 0) {
-        updateStatus(`Loaded ${newFiles.length} files. Skipped ${skippedFiles.length} files (size > 50MB)`, 'warning');
+        updateStatus(
+          `Loaded ${textFileCount} text files. Skipped ${skippedFiles.length} files (${nonTextFileCount} non-text, ${skippedFiles.length - nonTextFileCount} too large)`,
+          'warning'
+        );
         console.log('Skipped files:', skippedFiles);
       } else {
-        updateStatus(`Loaded ${newFiles.length} files successfully`, 'success');
+        updateStatus(
+          `Loaded ${textFileCount} text files${nonTextFileCount > 0 ? ` (${nonTextFileCount} non-text files excluded)` : ''}`,
+          'success'
+        );
       }
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -126,25 +137,10 @@ export function useFileSystem() {
     }
   }, [updateStatus]);
 
-  const toggleExtension = useCallback((extension: string) => {
-    setSelectedFiles(prev => {
-      const next = new Set(prev);
-      const extensionFiles = files.filter(f => f.extension === extension);
-      
-      const allSelected = extensionFiles.every(f => prev.has(f.path));
-      extensionFiles.forEach(file => {
-        if (allSelected) {
-          next.delete(file.path);
-        } else {
-          next.add(file.path);
-        }
-      });
-      
-      return next;
-    });
-  }, [files]);
-
   const toggleFile = useCallback((path: string) => {
+    const file = files.find(f => f.path === path);
+    if (!file?.isText) return; // Only allow toggling text files
+
     setSelectedFiles(prev => {
       const next = new Set(prev);
       if (next.has(path)) {
@@ -154,18 +150,21 @@ export function useFileSystem() {
       }
       return next;
     });
-  }, []);
+  }, [files]);
 
   const toggleDirectory = useCallback((directory: string) => {
     setSelectedFiles(prev => {
       const next = new Set(prev);
       const directoryFiles = getFilesInDirectory(directory);
       
-      // Check if all files in this directory and subdirectories are selected
-      const allSelected = directoryFiles.every(f => prev.has(f.path));
+      // Only consider text files
+      const textFiles = directoryFiles.filter(f => f.isText);
       
-      // Toggle all files in this directory and subdirectories
-      directoryFiles.forEach(file => {
+      // Check if all text files in this directory and subdirectories are selected
+      const allSelected = textFiles.every(f => prev.has(f.path));
+      
+      // Toggle all text files in this directory and subdirectories
+      textFiles.forEach(file => {
         if (allSelected) {
           next.delete(file.path);
         } else {
@@ -188,11 +187,11 @@ export function useFileSystem() {
       const contents: string[] = [];
 
       for (const file of files) {
-        if (selectedFiles.has(file.path)) {
+        if (selectedFiles.has(file.path) && file.isText) {
           try {
             const fileHandle = await file.handle.getFile();
             const content = await fileHandle.text();
-            contents.push(`=== ${file.path} ===\n${content}\n`);
+            contents.push(formatFileContent(file.path, content));
           } catch (error) {
             updateStatus(`Error reading ${file.path}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'warning');
           }
@@ -200,7 +199,7 @@ export function useFileSystem() {
       }
 
       if (contents.length > 0) {
-        await navigator.clipboard.writeText(contents.join('\n'));
+        await navigator.clipboard.writeText(contents.join(''));
         updateStatus(`Copied ${contents.length} files to clipboard`, 'success');
       }
     } catch (error) {
@@ -210,23 +209,22 @@ export function useFileSystem() {
     }
   };
 
-  const selectAll = () => {
-    setSelectedFiles(new Set(files.map(f => f.path)));
-  };
+  const selectAll = useCallback(() => {
+    setSelectedFiles(new Set(files.filter(f => f.isText).map(f => f.path)));
+  }, [files]);
 
-  const deselectAll = () => {
+  const deselectAll = useCallback(() => {
     setSelectedFiles(new Set());
-  };
+  }, []);
 
   return {
     files,
     selectedFiles,
-    extensions,
     status,
     loading,
     currentDirectory,
+    processingFiles,
     handleFolderSelect,
-    toggleExtension,
     toggleFile,
     toggleDirectory,
     copySelected,
@@ -236,5 +234,6 @@ export function useFileSystem() {
     setCurrentDirectory,
     getFilesInDirectory,
     getImmediateFilesInDirectory,
+    getSubdirectories
   };
 }

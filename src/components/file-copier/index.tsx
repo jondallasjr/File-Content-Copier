@@ -2,17 +2,22 @@ import React, { useState } from 'react';
 import { useFileSystem } from '@/hooks/useFileSystem';
 import { StatusAlert } from './status-alert';
 import { DirectoryTree } from './directory-tree';
-import { SelectedFilesList } from './selected-files-list'; 
+import { SelectedFilesList } from './selected-files-list';
 import { ActionButtons } from './action-buttons';
+import { Welcome } from './welcome';
+import { ExtensionFilter } from './extension-filter';
+import { SearchBox } from './search-box';
 
 export function FileContentCopier() {
-  const [expandedPanels, setExpandedPanels] = useState<Set<string>>(new Set(['directory']));
+  const [extensionFilter, setExtensionFilter] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
   
   const {
     files,
     selectedFiles,
     status,
     loading,
+    processingFiles,
     handleFolderSelect,
     toggleFile,
     toggleDirectory,
@@ -21,8 +26,20 @@ export function FileContentCopier() {
     deselectAll
   } = useFileSystem();
 
+  const filteredFiles = files.filter(file => {
+    if (!file.isText) return false;
+    
+    const matchesExtension = !extensionFilter || file.extension === extensionFilter;
+    const matchesSearch = !searchQuery || 
+      file.path.toLowerCase().includes(searchQuery.toLowerCase());
+    
+    return matchesExtension && matchesSearch;
+  });
+
   return (
     <div className="max-w-6xl mx-auto p-4">
+      <Welcome />
+      
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <ActionButtons
           onFolderSelect={handleFolderSelect}
@@ -30,7 +47,7 @@ export function FileContentCopier() {
           onSelectAll={selectAll}
           onDeselectAll={deselectAll}
           selectedCount={selectedFiles.size}
-          totalFiles={files.length}
+          totalFiles={filteredFiles.length}
           loading={loading}
         />
       </div>
@@ -42,12 +59,32 @@ export function FileContentCopier() {
         <div className="col-span-6 border rounded dark:border-gray-700">
           <div className="p-4">
             <h2 className="text-lg font-semibold mb-4">Directory</h2>
-            <DirectoryTree
-              files={files}
-              selectedFiles={selectedFiles}
-              onToggleFile={toggleFile}
-              onToggleDirectory={toggleDirectory}
-            />
+            
+            <div className="space-y-4">
+              <div className="flex gap-4">
+                <div className="flex-1">
+                  <SearchBox
+                    onSearch={setSearchQuery}
+                    disabled={loading}
+                    placeholder="Search files..."
+                  />
+                </div>
+                <div className="w-48">
+                  <ExtensionFilter
+                    files={files}
+                    onFilterChange={setExtensionFilter}
+                  />
+                </div>
+              </div>
+              
+              <DirectoryTree
+                files={filteredFiles}
+                selectedFiles={selectedFiles}
+                onToggleFile={toggleFile}
+                onToggleDirectory={toggleDirectory}
+                processingFiles={processingFiles}
+              />
+            </div>
           </div>
         </div>
 
