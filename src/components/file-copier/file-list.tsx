@@ -44,7 +44,7 @@ export function FileList({ files, selectedFiles, onToggleFile }: FileListProps) 
             <button
               key={file.path}
               onClick={() => onToggleFile(file.path)}
-              className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-100 rounded text-left"
+              className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-left transition-colors"
             >
               {selectedFiles.has(file.path) ? (
                 <CheckSquare className="w-4 h-4 text-blue-500" />

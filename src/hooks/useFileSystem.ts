@@ -10,6 +10,7 @@ export function useFileSystem() {
   const [extensions, setExtensions] = useState<ExtensionMap>(new Map());
   const [status, setStatus] = useState<Status>({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
+  const [currentDirectory, setCurrentDirectory] = useState<string>('/');
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
 
   const updateStatus = useCallback((message: string, type: Status['type'] = 'info') => {
@@ -19,32 +20,41 @@ export function useFileSystem() {
     }
   }, []);
 
-  // Load saved directory handle on mount
-  useEffect(() => {
-    const loadSavedHandle = async () => {
-      try {
-        const savedHandle = localStorage.getItem('lastDirectoryHandle');
-        if (savedHandle) {
-          const handle = await window.showDirectoryPicker();
-          // Verify we still have permission
-          const permission = await handle.queryPermission({ mode: 'read' });
-          if (permission !== 'granted') {
-            const newPermission = await handle.requestPermission({ mode: 'read' });
-            if (newPermission !== 'granted') {
-              throw new Error('Permission denied');
-            }
-          }
-          setDirectoryHandle(handle);
-        }
-      } catch (error) {
-        console.log('Failed to restore directory access:', error);
-        localStorage.removeItem('lastDirectoryHandle');
-      }
-    };
-    loadSavedHandle();
-  }, []);
+  // Helper function to get all files under a directory path (including subdirectories)
+  const getFilesInDirectory = useCallback((directory: string) => {
+    return files.filter(file => {
+      const dirPath = directory === '/' ? '' : directory;
+      return file.path.startsWith(dirPath + '/');
+    });
+  }, [files]);
 
-  const handleFolderSelect = async () => {
+  // Helper function to get immediate files in a directory (no subdirectories)
+  const getImmediateFilesInDirectory = useCallback((directory: string) => {
+    return files.filter(file => {
+      const dirPath = directory === '/' ? '' : directory;
+      const relativePath = file.path.slice(dirPath.length + 1);
+      return file.path.startsWith(dirPath + '/') && !relativePath.includes('/');
+    });
+  }, [files]);
+
+  // Helper function to get all subdirectories under a directory
+  const getSubdirectories = useCallback((directory: string) => {
+    const dirs = new Set<string>();
+    files.forEach(file => {
+      const dirPath = directory === '/' ? '' : directory;
+      if (file.path.startsWith(dirPath + '/')) {
+        const relativePath = file.path.slice(dirPath.length + 1);
+        const parts = relativePath.split('/');
+        if (parts.length > 1) {
+          const subdir = dirPath + '/' + parts[0];
+          dirs.add(subdir);
+        }
+      }
+    });
+    return Array.from(dirs);
+  }, [files]);
+
+  const handleFolderSelect = useCallback(async () => {
     try {
       setLoading(true);
       const dirHandle = await window.showDirectoryPicker();
@@ -93,8 +103,8 @@ export function useFileSystem() {
       setExtensions(newExtensions);
       setSelectedFiles(new Set());
       setDirectoryHandle(dirHandle);
+      setCurrentDirectory('/');
       
-      // Save directory handle
       try {
         localStorage.setItem('lastDirectoryHandle', 'true');
       } catch (error) {
@@ -114,7 +124,7 @@ export function useFileSystem() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [updateStatus]);
 
   const toggleExtension = useCallback((extension: string) => {
     setSelectedFiles(prev => {
@@ -145,6 +155,27 @@ export function useFileSystem() {
       return next;
     });
   }, []);
+
+  const toggleDirectory = useCallback((directory: string) => {
+    setSelectedFiles(prev => {
+      const next = new Set(prev);
+      const directoryFiles = getFilesInDirectory(directory);
+      
+      // Check if all files in this directory and subdirectories are selected
+      const allSelected = directoryFiles.every(f => prev.has(f.path));
+      
+      // Toggle all files in this directory and subdirectories
+      directoryFiles.forEach(file => {
+        if (allSelected) {
+          next.delete(file.path);
+        } else {
+          next.add(file.path);
+        }
+      });
+      
+      return next;
+    });
+  }, [files, getFilesInDirectory]);
 
   const copySelected = async () => {
     if (selectedFiles.size === 0) {
@@ -193,12 +224,17 @@ export function useFileSystem() {
     extensions,
     status,
     loading,
+    currentDirectory,
     handleFolderSelect,
     toggleExtension,
     toggleFile,
+    toggleDirectory,
     copySelected,
     selectAll,
     deselectAll,
-    updateStatus
+    updateStatus,
+    setCurrentDirectory,
+    getFilesInDirectory,
+    getImmediateFilesInDirectory,
   };
 }

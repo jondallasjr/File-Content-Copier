@@ -1,4 +1,3 @@
-// src/components/file-copier/search-box.tsx
 import { Search } from 'lucide-react';
 import { useCallback, useState } from 'react';
 import { debounce } from 'lodash';

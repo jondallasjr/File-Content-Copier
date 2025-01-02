@@ -4,6 +4,7 @@ export interface FileInfo {
   handle: FileSystemFileHandle;
   extension: string;
   size?: number;  // Optional since we're adding it to existing interface
+  directory?: string;
 }
 
   export interface Status {
