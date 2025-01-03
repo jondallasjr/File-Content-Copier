@@ -8,7 +8,7 @@ interface SelectedFilesListProps {
 }
 
 export function SelectedFilesList({ files, selectedFiles, onToggleFile }: SelectedFilesListProps) {
-  const selectedFilesList = files.filter(file => selectedFiles.has(file.path));
+  const selectedFilesList = files.filter(file => file.isSelectable && selectedFiles.has(file.path));
 
   return (
     <div className="space-y-1 max-h-[calc(100vh-300px)] overflow-y-auto">

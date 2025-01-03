@@ -80,14 +80,14 @@ function DirectoryTreeNode({
 }) {
   // Calculate if all files in this directory and subdirectories are selected
   const allSelected = node.fileCount > 0 && 
-                     node.files.filter(f => f.isText).every(f => selectedFiles.has(f.path)) &&
+                     node.files.filter(f => f.isSelectable).every(f => selectedFiles.has(f.path)) &&
                      Array.from(node.children.values()).every(child => 
-                       child.files.filter(f => f.isText).every(f => selectedFiles.has(f.path)));
+                       child.files.filter(f => f.isSelectable).every(f => selectedFiles.has(f.path)));
                        
   // Calculate if some files are selected
-  const someSelected = node.files.some(f => f.isText && selectedFiles.has(f.path)) ||
+  const someSelected = node.files.some(f => f.isSelectable && selectedFiles.has(f.path)) ||
                       Array.from(node.children.values()).some(child => 
-                        child.files.some(f => f.isText && selectedFiles.has(f.path)));
+                        child.files.some(f => f.isSelectable && selectedFiles.has(f.path)));
                         
   const hasChildren = node.children.size > 0 || node.files.length > 0;
   const isExpanded = expanded.has(node.path);
@@ -99,8 +99,8 @@ function DirectoryTreeNode({
 
   if (!matchesSearch) return null;
 
-  // Count text files
-  const textFileCount = node.files.filter(f => f.isText).length;
+  // Count selectable files
+  const selectableFileCount = node.files.filter(f => f.isSelectable).length;
 
   return (
     <div>
@@ -149,7 +149,7 @@ function DirectoryTreeNode({
           
           {/* File count */}
           <span className="ml-auto text-gray-400 text-sm pr-4">
-            ({textFileCount} text file{textFileCount !== 1 ? 's' : ''})
+            ({selectableFileCount} file{selectableFileCount !== 1 ? 's' : ''})
           </span>
         </div>
       )}
@@ -164,28 +164,28 @@ function DirectoryTreeNode({
               <div
                 key={file.path}
                 className={`flex items-center w-full hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-left ${
-                  !file.isText ? 'opacity-60' : ''
+                  !file.isSelectable ? 'opacity-60' : ''
                 }`}
                 style={{ paddingLeft: `${(level + 1) * 16}px` }}
               >
                 <div className="w-8 h-8" /> {/* Spacing for alignment */}
                 <div
-                  onClick={() => file.isText && onToggleFile(file.path)}
-                  className={`p-2 ${file.isText ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                  onClick={() => file.isSelectable && onToggleFile(file.path)}
+                  className={`p-2 ${file.isSelectable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
                 >
                   {processingFiles.has(file.path) ? (
                     <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                  ) : file.isText && selectedFiles.has(file.path) ? (
+                  ) : file.isSelectable && selectedFiles.has(file.path) ? (
                     <CheckSquare className="w-4 h-4 text-blue-500" />
                   ) : (
                     <Square className="w-4 h-4 text-gray-400" />
                   )}
                 </div>
                 <span className={`py-2 text-sm truncate ${
-                  file.isText ? 'font-mono' : 'text-gray-400'
+                  file.isSelectable ? 'font-mono' : 'text-gray-400'
                 }`}>
                   {file.name}
-                  {!file.isText && ' (non-text)'}
+                  {!file.isSelectable && ' (unsupported)'}
                 </span>
                 {file.size && (
                   <span className="ml-auto text-gray-400 text-xs pr-4">

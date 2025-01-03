@@ -7,9 +7,10 @@ import { ActionButtons } from './action-buttons';
 import { Welcome } from './welcome';
 import { ExtensionFilter } from './extension-filter';
 import { SearchBox } from './search-box';
+import { LoadingProgress } from './loading-progress';
 
 export function FileContentCopier() {
-  const [extensionFilter, setExtensionFilter] = useState<string | null>(null);
+  const [extensionFilters, setExtensionFilters] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
   
   const {
@@ -18,6 +19,8 @@ export function FileContentCopier() {
     status,
     loading,
     processingFiles,
+    totalFiles,
+    processedFiles,
     handleFolderSelect,
     toggleFile,
     toggleDirectory,
@@ -27,9 +30,10 @@ export function FileContentCopier() {
   } = useFileSystem();
 
   const filteredFiles = files.filter(file => {
-    if (!file.isText) return false;
+    if (!file.isSelectable) return false;
     
-    const matchesExtension = !extensionFilter || file.extension === extensionFilter;
+    const matchesExtension = extensionFilters.size === 0 || 
+      extensionFilters.has(file.extension || '(no extension)');
     const matchesSearch = !searchQuery || 
       file.path.toLowerCase().includes(searchQuery.toLowerCase());
     
@@ -52,6 +56,14 @@ export function FileContentCopier() {
         />
       </div>
 
+      {loading && totalFiles > 0 && (
+        <LoadingProgress
+          totalFiles={totalFiles}
+          processedFiles={processedFiles}
+          currentlyProcessing={processingFiles}
+        />
+      )}
+
       {status.message && <StatusAlert status={status} />}
 
       <div className="grid grid-cols-12 gap-4">
@@ -71,8 +83,7 @@ export function FileContentCopier() {
                 </div>
                 <div className="w-48">
                   <ExtensionFilter
-                    files={files}
-                    onFilterChange={setExtensionFilter}
+                    onFilterChange={setExtensionFilters}
                   />
                 </div>
               </div>

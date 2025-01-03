@@ -1,33 +1,36 @@
-export const QUICK_SELECT_PATTERNS = [
+export const TEXT_FILE_EXTENSIONS = new Set([
+    // Web/Config
+    'js', 'jsx', 'ts', 'tsx', 'json', 'yml', 'yaml', 'toml', 'xml', 'html', 'css', 'scss', 'less',
+    // Config files
+    'env', 'ini', 'conf', 'config',
+    // Documentation
+    'md', 'mdx', 'txt', 'rst',
+    // Programming Languages
+    'py', 'rb', 'php', 'java', 'c', 'cpp', 'h', 'hpp', 'cs', 'go', 'rs', 'swift',
+    'kt', 'scala', 'perl', 'r', 'sql', 'sh', 'bash', 'zsh', 'fish',
+    // Common Config Files (without extension)
+    'dockerfile', 'makefile', 'gitignore', 'dockerignore', 'editorconfig'
+  ]);
+  
+  // Group extensions by category for the dropdown
+  export const EXTENSION_CATEGORIES = [
     {
-      name: "Core Next.js Files",
-      patterns: [
-        "src/**/*",
-        "package.json",
-        "tsconfig.json",
-        "next.config.*",
-        "tailwind.config.*",
-        "postcss.config.*",
-        ".env*",
-        ".eslintrc.*"
-      ]
+      name: 'Web Development',
+      extensions: ['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'less']
     },
     {
-      name: "Config Files Only",
-      patterns: [
-        "package.json",
-        "tsconfig.json",
-        "next.config.*",
-        "tailwind.config.*",
-        "*.config.*",
-        ".env*"
-      ]
+      name: 'Configuration',
+      extensions: ['json', 'yml', 'yaml', 'toml', 'env', 'ini', 'conf', 'config']
     },
     {
-      name: "Source Files Only",
-      patterns: ["src/**/*"]
+      name: 'Documentation',
+      extensions: ['md', 'mdx', 'txt', 'rst']
+    },
+    {
+      name: 'Programming',
+      extensions: ['py', 'rb', 'php', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'swift']
     }
-  ] satisfies Array<{
-    name: string;
-    patterns: string[];
-  }>;
+  ] as const;
+  
+  // Default selected categories
+  export const DEFAULT_SELECTED_CATEGORIES = ['Web Development', 'Configuration'];

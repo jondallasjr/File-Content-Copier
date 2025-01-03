@@ -1,36 +1,71 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# File Content Copier
+
+A secure, client-side tool for copying the contents of multiple text files to your clipboard. Perfect for sharing code with AI assistants or documenting project structures.
+
+## Features
+
+- 🔒 Fully client-side processing - no data leaves your browser
+- 📁 Browse and select files from any directory
+- 🔍 Search and filter files by extension
+- ⚡ Quick selection tools and keyboard shortcuts
+- 📝 Support for all text file formats
+- 🛡️ Automatic binary file detection and exclusion
+- 🎯 File size limit (5MB) to ensure stable performance
+- 🔐 No data collection or tracking
+
+## Privacy & Security
+
+- All file processing happens locally in your browser
+- No data is uploaded to any servers
+- Files are accessed using the secure File System Access API
+- Only text files are processed; binary files are automatically excluded
+- Clipboard operations are handled securely through the system clipboard API
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository:
+```bash
+git clone [repository-url]
+cd file-content-copier
+```
 
+2. Install dependencies:
+```bash
+npm install
+# or
+yarn install
+```
+
+3. Run the development server:
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+4. Open [http://localhost:3000](http://localhost:3000) with your browser
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Usage
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Click "Select Folder" to choose your project directory
+2. Navigate the directory tree to select files
+3. Use search and filters to find specific files
+4. Click "Copy Selected" to copy file contents to clipboard
 
-## Learn More
+### Keyboard Shortcuts
 
-To learn more about Next.js, take a look at the following resources:
+- `Ctrl/Cmd + A`: Select all files
+- `Ctrl/Cmd + C`: Copy selected files
+- `Esc`: Clear selection/search
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Technical Details
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Built with Next.js and React
+- Uses the File System Access API for secure file handling
+- Implements efficient text file detection
+- Responsive design with Tailwind CSS
+- TypeScript for type safety
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[Add your license here]

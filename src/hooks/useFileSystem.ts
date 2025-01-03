@@ -1,8 +1,14 @@
 import { useState, useCallback } from 'react';
 import { FileInfo, Status } from '@/types/files';
-import { isTextFile, formatFileContent, clearTextFileCache } from '@/lib/file-utils';
+import { EXTENSION_CATEGORIES } from '@/lib/constants';
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB size limit
+type ValidExtension = typeof EXTENSION_CATEGORIES[number]['extensions'][number];
+
+// Create the Set using type assertion
+const VALID_EXTENSIONS = new Set(
+  EXTENSION_CATEGORIES.flatMap(category => category.extensions)
+) as Set<ValidExtension>;
+
 const STATUS_TIMEOUT = 3000;
 
 export function useFileSystem() {
@@ -13,6 +19,8 @@ export function useFileSystem() {
   const [currentDirectory, setCurrentDirectory] = useState<string>('/');
   const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
+  const [totalFiles, setTotalFiles] = useState<number>(0);
+  const [processedFiles, setProcessedFiles] = useState<number>(0);
 
   const updateStatus = useCallback((message: string, type: Status['type'] = 'info') => {
     setStatus({ message, type });
@@ -54,50 +62,41 @@ export function useFileSystem() {
     return Array.from(dirs);
   }, [files]);
 
+  const isFileSelectable = useCallback((filename: string): boolean => {
+    // Handle files without extensions (like 'dockerfile', 'makefile')
+    if (!filename.includes('.')) {
+      return VALID_EXTENSIONS.has(filename.toLowerCase() as ValidExtension);
+    }
+    
+    // Get the extension and check if it's in our valid set
+    const extension = filename.split('.').pop()?.toLowerCase() || '';
+    return VALID_EXTENSIONS.has(extension as ValidExtension);
+  }, []);
+
   const handleFolderSelect = useCallback(async () => {
     try {
       setLoading(true);
-      clearTextFileCache(); // Clear the cache when selecting a new folder
       const dirHandle = await window.showDirectoryPicker();
       const newFiles: FileInfo[] = [];
-      const skippedFiles: string[] = [];
-      setProcessingFiles(new Set());
 
       const processDirectory = async (handle: FileSystemDirectoryHandle, path = '') => {
         for await (const entry of handle.values()) {
           const entryPath = path ? `${path}/${entry.name}` : entry.name;
-          
+
           if (entry.kind === 'file') {
             const fileHandle = entry as FileSystemFileHandle;
-            setProcessingFiles(prev => new Set(prev).add(entryPath));
-            
-            try {
-              const file = await fileHandle.getFile();
-              if (file.size > MAX_FILE_SIZE) {
-                skippedFiles.push(`${entryPath} (${(file.size / 1024 / 1024).toFixed(1)}MB)`);
-                continue;
-              }
+            const file = await fileHandle.getFile();
+            const extension = entry.name.split('.').pop()?.toLowerCase() || '';
+            const selectable = isFileSelectable(entry.name);
 
-              // Check if it's a text file
-              const isText = await isTextFile(fileHandle);
-              
-              const extension = entry.name.split('.').pop() || '';
+            if (selectable) {
               newFiles.push({
                 name: entry.name,
                 path: entryPath,
                 handle: fileHandle,
                 extension,
                 size: file.size,
-                isText
-              });
-            } catch (error) {
-              console.error(`Error processing file ${entryPath}:`, error);
-              skippedFiles.push(entryPath);
-            } finally {
-              setProcessingFiles(prev => {
-                const next = new Set(prev);
-                next.delete(entryPath);
-                return next;
+                isSelectable: true
               });
             }
           } else if (entry.kind === 'directory') {
@@ -113,21 +112,10 @@ export function useFileSystem() {
       setDirectoryHandle(dirHandle);
       setCurrentDirectory('/');
 
-      const textFileCount = newFiles.filter(f => f.isText).length;
-      const nonTextFileCount = newFiles.length - textFileCount;
-      
-      if (skippedFiles.length > 0) {
-        updateStatus(
-          `Loaded ${textFileCount} text files. Skipped ${skippedFiles.length} files (${nonTextFileCount} non-text, ${skippedFiles.length - nonTextFileCount} too large)`,
-          'warning'
-        );
-        console.log('Skipped files:', skippedFiles);
-      } else {
-        updateStatus(
-          `Loaded ${textFileCount} text files${nonTextFileCount > 0 ? ` (${nonTextFileCount} non-text files excluded)` : ''}`,
-          'success'
-        );
-      }
+      updateStatus(
+        `Found ${newFiles.length} files with supported extensions`,
+        'success'
+      );
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         updateStatus(`Error loading folder: ${error.message}`, 'error');
@@ -135,12 +123,9 @@ export function useFileSystem() {
     } finally {
       setLoading(false);
     }
-  }, [updateStatus]);
+  }, [updateStatus, isFileSelectable]);
 
   const toggleFile = useCallback((path: string) => {
-    const file = files.find(f => f.path === path);
-    if (!file?.isText) return; // Only allow toggling text files
-
     setSelectedFiles(prev => {
       const next = new Set(prev);
       if (next.has(path)) {
@@ -150,31 +135,28 @@ export function useFileSystem() {
       }
       return next;
     });
-  }, [files]);
+  }, []);
 
   const toggleDirectory = useCallback((directory: string) => {
     setSelectedFiles(prev => {
       const next = new Set(prev);
       const directoryFiles = getFilesInDirectory(directory);
-      
-      // Only consider text files
-      const textFiles = directoryFiles.filter(f => f.isText);
-      
-      // Check if all text files in this directory and subdirectories are selected
-      const allSelected = textFiles.every(f => prev.has(f.path));
-      
-      // Toggle all text files in this directory and subdirectories
-      textFiles.forEach(file => {
+
+      // Check if all files in this directory and subdirectories are selected
+      const allSelected = directoryFiles.every(f => prev.has(f.path));
+
+      // Toggle all files in this directory and subdirectories
+      directoryFiles.forEach(file => {
         if (allSelected) {
           next.delete(file.path);
         } else {
           next.add(file.path);
         }
       });
-      
+
       return next;
     });
-  }, [files, getFilesInDirectory]);
+  }, [getFilesInDirectory]);
 
   const copySelected = async () => {
     if (selectedFiles.size === 0) {
@@ -187,11 +169,11 @@ export function useFileSystem() {
       const contents: string[] = [];
 
       for (const file of files) {
-        if (selectedFiles.has(file.path) && file.isText) {
+        if (selectedFiles.has(file.path)) {
           try {
             const fileHandle = await file.handle.getFile();
             const content = await fileHandle.text();
-            contents.push(formatFileContent(file.path, content));
+            contents.push(`=== START ${file.path} ===\n${content}\n=== END ${file.path} ===\n\n`);
           } catch (error) {
             updateStatus(`Error reading ${file.path}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'warning');
           }
@@ -210,7 +192,7 @@ export function useFileSystem() {
   };
 
   const selectAll = useCallback(() => {
-    setSelectedFiles(new Set(files.filter(f => f.isText).map(f => f.path)));
+    setSelectedFiles(new Set(files.map(f => f.path)));
   }, [files]);
 
   const deselectAll = useCallback(() => {
@@ -224,6 +206,8 @@ export function useFileSystem() {
     loading,
     currentDirectory,
     processingFiles,
+    totalFiles,
+    processedFiles,
     handleFolderSelect,
     toggleFile,
     toggleDirectory,
@@ -234,6 +218,6 @@ export function useFileSystem() {
     setCurrentDirectory,
     getFilesInDirectory,
     getImmediateFilesInDirectory,
-    getSubdirectories
+    getSubdirectories,
   };
 }

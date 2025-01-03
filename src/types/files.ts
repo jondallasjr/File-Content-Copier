@@ -5,7 +5,7 @@ export interface FileInfo {
   extension: string;
   size?: number;
   directory?: string;
-  isText: boolean;  // Add this property
+  isSelectable: boolean;
 }
 
 export interface Status {
@@ -14,3 +14,4 @@ export interface Status {
 }
 
 export type ExtensionMap = Map<string, number>;
+
