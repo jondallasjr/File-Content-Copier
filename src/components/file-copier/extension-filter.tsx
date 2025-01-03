@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronDown, Square, CheckSquare } from 'lucide-react';
-import { PREFERRED_EXTENSIONS } from '@/lib/constants';
 
 interface ExtensionFilterProps {
   files: { extension: string }[]; // Files array with extension property
