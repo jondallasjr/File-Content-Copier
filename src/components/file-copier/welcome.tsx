@@ -55,13 +55,13 @@ export function Welcome() {
             </div>
             <div className="mt-4 space-y-3">
                 <p>This tool helps you copy the contents of multiple text files into your clipboard, perfect for sharing code with AI assistants or documenting your project structure.</p>
-                <div className="space-y-2">
+                <div className="mt-4 space-y-2">
                     <p className="font-medium">How to use:</p>
                     <ol className="list-decimal list-inside space-y-1 ml-2">
-                        <li>Click &quot;Select Folder&quot; to choose your project directory</li>
+                        <li>Click &ldquo;Select Folder&rdquo; to choose your project directory</li>
                         <li>Use the Directory tree to navigate and select files</li>
-                        <li>Selected files will appear in the &quot;Selected Files&quot; panel</li>
-                        <li>Click &quot;Copy Selected&quot; to copy all selected file contents to clipboard</li>
+                        <li>Selected files will appear in the &ldquo;Selected Files&rdquo; panel</li>
+                        <li>Click &ldquo;Copy Selected&rdquo; to copy all selected file contents to clipboard</li>
                     </ol>
                 </div>
                 <div className="mt-4 space-y-2">
