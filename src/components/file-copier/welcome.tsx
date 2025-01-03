@@ -58,10 +58,10 @@ export function Welcome() {
                 <div className="space-y-2">
                     <p className="font-medium">How to use:</p>
                     <ol className="list-decimal list-inside space-y-1 ml-2">
-                        <li>Click "Select Folder" to choose your project directory</li>
+                        <li>Click &quot;Select Folder&quot; to choose your project directory</li>
                         <li>Use the Directory tree to navigate and select files</li>
-                        <li>Selected files will appear in the "Selected Files" panel</li>
-                        <li>Click "Copy Selected" to copy all selected file contents to clipboard</li>
+                        <li>Selected files will appear in the &quot;Selected Files&quot; panel</li>
+                        <li>Click &quot;Copy Selected&quot; to copy all selected file contents to clipboard</li>
                     </ol>
                 </div>
                 <div className="mt-4 space-y-2">

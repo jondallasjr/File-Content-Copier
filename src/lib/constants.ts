@@ -1,4 +1,4 @@
-export const TEXT_FILE_EXTENSIONS = new Set([
+export const PREFERRED_EXTENSIONS = new Set([
     // Web/Config
     'js', 'jsx', 'ts', 'tsx', 'json', 'yml', 'yaml', 'toml', 'xml', 'html', 'css', 'scss', 'less',
     // Config files
@@ -11,26 +11,3 @@ export const TEXT_FILE_EXTENSIONS = new Set([
     // Common Config Files (without extension)
     'dockerfile', 'makefile', 'gitignore', 'dockerignore', 'editorconfig'
   ]);
-  
-  // Group extensions by category for the dropdown
-  export const EXTENSION_CATEGORIES = [
-    {
-      name: 'Web Development',
-      extensions: ['js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'less']
-    },
-    {
-      name: 'Configuration',
-      extensions: ['json', 'yml', 'yaml', 'toml', 'env', 'ini', 'conf', 'config']
-    },
-    {
-      name: 'Documentation',
-      extensions: ['md', 'mdx', 'txt', 'rst']
-    },
-    {
-      name: 'Programming',
-      extensions: ['py', 'rb', 'php', 'java', 'c', 'cpp', 'cs', 'go', 'rs', 'swift']
-    }
-  ] as const;
-  
-  // Default selected categories
-  export const DEFAULT_SELECTED_CATEGORIES = ['Web Development', 'Configuration'];

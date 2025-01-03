@@ -1,26 +1,19 @@
 import { useState, useCallback } from 'react';
 import { FileInfo, Status } from '@/types/files';
-import { EXTENSION_CATEGORIES } from '@/lib/constants';
-
-type ValidExtension = typeof EXTENSION_CATEGORIES[number]['extensions'][number];
-
-// Create the Set using type assertion
-const VALID_EXTENSIONS = new Set(
-  EXTENSION_CATEGORIES.flatMap(category => category.extensions)
-) as Set<ValidExtension>;
+import { PREFERRED_EXTENSIONS } from '@/lib/constants'; 
 
 const STATUS_TIMEOUT = 3000;
 
 export function useFileSystem() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
+  const [selectedExtensions, setSelectedExtensions] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<Status>({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
   const [currentDirectory, setCurrentDirectory] = useState<string>('/');
-  const [directoryHandle, setDirectoryHandle] = useState<FileSystemDirectoryHandle | null>(null);
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
-  const [totalFiles, setTotalFiles] = useState<number>(0);
-  const [processedFiles, setProcessedFiles] = useState<number>(0);
+  const [totalFiles, setTotalFiles] = useState(0);
+  const [processedFiles, setProcessedFiles] = useState(0);
 
   const updateStatus = useCallback((message: string, type: Status['type'] = 'info') => {
     setStatus({ message, type });
@@ -62,46 +55,57 @@ export function useFileSystem() {
     return Array.from(dirs);
   }, [files]);
 
-  const isFileSelectable = useCallback((filename: string): boolean => {
-    // Handle files without extensions (like 'dockerfile', 'makefile')
-    if (!filename.includes('.')) {
-      return VALID_EXTENSIONS.has(filename.toLowerCase() as ValidExtension);
-    }
-    
-    // Get the extension and check if it's in our valid set
-    const extension = filename.split('.').pop()?.toLowerCase() || '';
-    return VALID_EXTENSIONS.has(extension as ValidExtension);
-  }, []);
-
   const handleFolderSelect = useCallback(async () => {
     try {
       setLoading(true);
+      setProcessedFiles(0);
+      setTotalFiles(0);
+      setProcessingFiles(new Set());
+
       const dirHandle = await window.showDirectoryPicker();
       const newFiles: FileInfo[] = [];
+      let totalEntries = 0;
+      let processedEntries = 0;
 
       const processDirectory = async (handle: FileSystemDirectoryHandle, path = '') => {
+        const entries = [];
         for await (const entry of handle.values()) {
+          entries.push(entry);
+        }
+
+        totalEntries += entries.length;
+        setTotalFiles(totalEntries);
+
+        for (const entry of entries) {
           const entryPath = path ? `${path}/${entry.name}` : entry.name;
+          setProcessingFiles(prev => new Set(Array.from(prev).concat(entryPath)));
 
-          if (entry.kind === 'file') {
-            const fileHandle = entry as FileSystemFileHandle;
-            const file = await fileHandle.getFile();
-            const extension = entry.name.split('.').pop()?.toLowerCase() || '';
-            const selectable = isFileSelectable(entry.name);
+          try {
+            if (entry.kind === 'file') {
+              const fileHandle = entry as FileSystemFileHandle;
+              const file = await fileHandle.getFile();
+              const extension = entry.name.split('.').pop()?.toLowerCase() || '(no extension)';
 
-            if (selectable) {
               newFiles.push({
                 name: entry.name,
                 path: entryPath,
                 handle: fileHandle,
                 extension,
                 size: file.size,
-                isSelectable: true
+                isSelectable: true // All files are selectable
               });
+            } else if (entry.kind === 'directory') {
+              const newHandle = await handle.getDirectoryHandle(entry.name);
+              await processDirectory(newHandle, entryPath);
             }
-          } else if (entry.kind === 'directory') {
-            const newHandle = await handle.getDirectoryHandle(entry.name);
-            await processDirectory(newHandle, entryPath);
+          } finally {
+            processedEntries++;
+            setProcessedFiles(processedEntries);
+            setProcessingFiles(prev => {
+              const next = new Set(prev);
+              next.delete(entryPath);
+              return next;
+            });
           }
         }
       };
@@ -109,21 +113,26 @@ export function useFileSystem() {
       await processDirectory(dirHandle);
       setFiles(newFiles);
       setSelectedFiles(new Set());
-      setDirectoryHandle(dirHandle);
       setCurrentDirectory('/');
 
-      updateStatus(
-        `Found ${newFiles.length} files with supported extensions`,
-        'success'
+      // Auto-select preferred extensions
+      const preferredExtensions = new Set(
+        newFiles
+          .map(file => file.extension)
+          .filter(extension => PREFERRED_EXTENSIONS.has(extension))
       );
+      setSelectedExtensions(preferredExtensions);
+
+      updateStatus(`Found ${newFiles.length} files`, 'success');
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
         updateStatus(`Error loading folder: ${error.message}`, 'error');
       }
     } finally {
       setLoading(false);
+      setProcessingFiles(new Set());
     }
-  }, [updateStatus, isFileSelectable]);
+  }, [updateStatus]);
 
   const toggleFile = useCallback((path: string) => {
     setSelectedFiles(prev => {
@@ -202,6 +211,8 @@ export function useFileSystem() {
   return {
     files,
     selectedFiles,
+    selectedExtensions, 
+    setSelectedExtensions, 
     status,
     loading,
     currentDirectory,

@@ -10,16 +10,16 @@ interface SearchBoxProps {
 }
 
 export function SearchBox({ 
-  onSearch, 
-  disabled = false,
-  placeholder = "Search files..." 
-}: SearchBoxProps) {
-  const [value, setValue] = useState('');
+    onSearch, 
+    disabled = false,
+    placeholder = "Search files..." 
+  }: SearchBoxProps) {
+    const [value, setValue] = useState('');
   
-  const debouncedSearch = useCallback(
-    debounce((term: string) => onSearch(term), 300),
-    [onSearch]
-  );
+    const debouncedSearch = useCallback((term: string) => {
+        const debouncedFn = debounce((searchTerm: string) => onSearch(searchTerm), 300);
+        debouncedFn(term);
+      }, [onSearch]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;

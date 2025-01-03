@@ -12,7 +12,7 @@ import { LoadingProgress } from './loading-progress';
 export function FileContentCopier() {
   const [extensionFilters, setExtensionFilters] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   const {
     files,
     selectedFiles,
@@ -31,19 +31,19 @@ export function FileContentCopier() {
 
   const filteredFiles = files.filter(file => {
     if (!file.isSelectable) return false;
-    
-    const matchesExtension = extensionFilters.size === 0 || 
+
+    const matchesExtension = extensionFilters.size === 0 ||
       extensionFilters.has(file.extension || '(no extension)');
-    const matchesSearch = !searchQuery || 
+    const matchesSearch = !searchQuery ||
       file.path.toLowerCase().includes(searchQuery.toLowerCase());
-    
+
     return matchesExtension && matchesSearch;
   });
 
   return (
     <div className="max-w-6xl mx-auto p-4">
       <Welcome />
-      
+
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <ActionButtons
           onFolderSelect={handleFolderSelect}
@@ -71,7 +71,7 @@ export function FileContentCopier() {
         <div className="col-span-6 border rounded dark:border-gray-700">
           <div className="p-4">
             <h2 className="text-lg font-semibold mb-4">Directory</h2>
-            
+
             <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="flex-1">
@@ -83,11 +83,12 @@ export function FileContentCopier() {
                 </div>
                 <div className="w-48">
                   <ExtensionFilter
+                    files={files}
                     onFilterChange={setExtensionFilters}
                   />
                 </div>
               </div>
-              
+
               <DirectoryTree
                 files={filteredFiles}
                 selectedFiles={selectedFiles}

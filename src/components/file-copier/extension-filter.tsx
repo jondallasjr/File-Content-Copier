@@ -1,87 +1,56 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronDown, Square, CheckSquare, X } from 'lucide-react';
-import { EXTENSION_CATEGORIES, DEFAULT_SELECTED_CATEGORIES } from '@/lib/constants';
+import { ChevronDown, Square, CheckSquare } from 'lucide-react';
+import { PREFERRED_EXTENSIONS } from '@/lib/constants';
 
 interface ExtensionFilterProps {
+  files: { extension: string }[]; // Files array with extension property
   onFilterChange: (extensions: Set<string>) => void;
 }
 
-export function ExtensionFilter({ onFilterChange }: ExtensionFilterProps) {
+export function ExtensionFilter({ files, onFilterChange }: ExtensionFilterProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
-    new Set(DEFAULT_SELECTED_CATEGORIES)
-  );
+  const [selectedExtensions, setSelectedExtensions] = useState<Set<string>>(new Set());
+  const [showAllExtensions, setShowAllExtensions] = useState(false);
 
-  // Initialize with default categories
+  // Auto-select preferred extensions on mount
   useEffect(() => {
-    const initialExtensions = new Set(
-      EXTENSION_CATEGORIES
-        .filter(cat => DEFAULT_SELECTED_CATEGORIES.includes(cat.name))
-        .flatMap(cat => cat.extensions)
+    const preferredExtensions = new Set(
+      files
+        .map(file => file.extension)
+        .filter(extension => PREFERRED_EXTENSIONS.has(extension))
     );
-    onFilterChange(initialExtensions);
-  }, [onFilterChange]);
+    setSelectedExtensions(preferredExtensions);
+    onFilterChange(preferredExtensions);
+  }, [files, onFilterChange]);
 
-  // Get the total number of extensions across all categories
-  const totalExtensions = EXTENSION_CATEGORIES.reduce(
-    (sum, category) => sum + category.extensions.length,
-    0
-  );
+  // Get unique extensions from files, ordered by frequency
+  const extensions = Array.from(
+    new Set(files.map(file => file.extension))
+  ).sort((a, b) => {
+    const countA = files.filter(f => f.extension === a).length;
+    const countB = files.filter(f => f.extension === b).length;
+    return countB - countA; // Sort by frequency (most to least)
+  });
 
-  // Handler for toggling individual categories
-  const handleCategoryToggle = (categoryName: string) => {
-    const newSelected = new Set(selectedCategories);
-    if (newSelected.has(categoryName)) {
-      newSelected.delete(categoryName);
+  // Show top 5 extensions by default
+  const visibleExtensions = showAllExtensions ? extensions : extensions.slice(0, 5);
+
+  // Toggle an extension in the selected set
+  const handleToggleExtension = (extension: string) => {
+    const newSelected = new Set(selectedExtensions);
+    if (newSelected.has(extension)) {
+      newSelected.delete(extension);
     } else {
-      newSelected.add(categoryName);
+      newSelected.add(extension);
     }
-    setSelectedCategories(newSelected);
-
-    // Update selected extensions based on categories
-    const selectedExtensions = new Set(
-      EXTENSION_CATEGORIES
-        .filter(cat => newSelected.has(cat.name))
-        .flatMap(cat => cat.extensions)
-    );
-    onFilterChange(selectedExtensions);
+    setSelectedExtensions(newSelected);
+    onFilterChange(newSelected);
   };
 
-  // Handler for selecting/deselecting all categories
-  const handleSelectAll = () => {
-    if (selectedCategories.size === EXTENSION_CATEGORIES.length) {
-      // If all are selected, clear selection
-      setSelectedCategories(new Set());
-      onFilterChange(new Set());
-    } else {
-      // Select all categories
-      const allCategories = new Set(EXTENSION_CATEGORIES.map(cat => cat.name));
-      setSelectedCategories(allCategories);
-      const allExtensions = new Set(
-        EXTENSION_CATEGORIES.flatMap(cat => cat.extensions)
-      );
-      onFilterChange(allExtensions);
-    }
+  // Toggle the "Show more" state
+  const handleShowMore = () => {
+    setShowAllExtensions(true);
   };
-
-  // Handler for clearing all selections
-  const handleClearAll = () => {
-    setSelectedCategories(new Set());
-    onFilterChange(new Set());
-  };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      const target = event.target as HTMLElement;
-      if (!target.closest('.extension-filter')) {
-        setIsOpen(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   return (
     <div className="relative extension-filter">
@@ -93,11 +62,9 @@ export function ExtensionFilter({ onFilterChange }: ExtensionFilterProps) {
         aria-haspopup="true"
       >
         <span className="truncate">
-          {selectedCategories.size === 0
-            ? "Select Extensions"
-            : selectedCategories.size === EXTENSION_CATEGORIES.length
-            ? "All Extensions"
-            : `${selectedCategories.size} categories selected`}
+          {selectedExtensions.size === 0
+            ? "All Files"
+            : `${selectedExtensions.size} ${selectedExtensions.size === 1 ? 'extension' : 'extensions'}`}
         </span>
         <ChevronDown 
           className={`w-4 h-4 ml-2 transition-transform duration-200 ${
@@ -109,70 +76,42 @@ export function ExtensionFilter({ onFilterChange }: ExtensionFilterProps) {
       {/* Dropdown Menu */}
       {isOpen && (
         <div className="absolute z-50 w-64 mt-1 bg-white dark:bg-gray-800 border rounded-md shadow-lg max-h-96 overflow-y-auto">
-          {/* Header with Select All and Clear */}
-          <div className="sticky top-0 bg-white dark:bg-gray-800 border-b px-4 py-2 flex justify-between items-center">
-            <button
-              onClick={handleSelectAll}
-              className="text-sm text-blue-500 hover:text-blue-600 dark:hover:text-blue-400"
-            >
-              {selectedCategories.size === EXTENSION_CATEGORIES.length
-                ? "Deselect All"
-                : "Select All"}
-            </button>
-            {selectedCategories.size > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="text-sm text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 flex items-center"
-              >
-                <X className="w-4 h-4 mr-1" />
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Categories List */}
           <div className="py-1">
-            {EXTENSION_CATEGORIES.map(category => (
+            {/* List of Extensions */}
+            {visibleExtensions.map(extension => (
               <div
-                key={category.name}
+                key={extension}
                 className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700"
               >
                 <button
-                  onClick={() => handleCategoryToggle(category.name)}
+                  onClick={() => handleToggleExtension(extension)}
                   className="w-full flex items-center justify-between group"
                 >
                   <div className="flex-1">
                     <div className="flex items-center">
-                      {selectedCategories.has(category.name) ? (
+                      {selectedExtensions.has(extension) ? (
                         <CheckSquare className="w-4 h-4 text-blue-500 mr-2" />
                       ) : (
                         <Square className="w-4 h-4 text-gray-400 mr-2" />
                       )}
-                      <span className="font-medium">{category.name}</span>
-                    </div>
-                    <div className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                      {category.extensions.join(', ')}
+                      <span className="font-medium">{extension}</span>
                     </div>
                   </div>
                   <span className="text-xs text-gray-400 ml-2">
-                    ({category.extensions.length})
+                    ({files.filter(f => f.extension === extension).length})
                   </span>
                 </button>
               </div>
             ))}
-          </div>
 
-          {/* Footer with Extension Count */}
-          <div className="sticky bottom-0 bg-white dark:bg-gray-800 border-t px-4 py-2 text-xs text-gray-500">
-            {selectedCategories.size > 0 ? (
-              <>
-                {EXTENSION_CATEGORIES
-                  .filter(cat => selectedCategories.has(cat.name))
-                  .reduce((sum, cat) => sum + cat.extensions.length, 0)}{' '}
-                of {totalExtensions} extensions selected
-              </>
-            ) : (
-              `${totalExtensions} available extensions`
+            {/* Show More Button */}
+            {!showAllExtensions && extensions.length > 5 && (
+              <button
+                onClick={handleShowMore}
+                className="w-full px-4 py-2 text-sm text-blue-500 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Show more...
+              </button>
             )}
           </div>
         </div>

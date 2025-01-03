@@ -16,6 +16,7 @@ interface DirectoryTreeProps {
   onToggleDirectory: (directory: string) => void;
   onToggleFile: (path: string) => void;
   processingFiles: Set<string>;
+  searchQuery?: string; // Make search query optional in props
 }
 
 function buildDirectoryTree(files: FileInfo[]): TreeNode {
@@ -58,25 +59,25 @@ function buildDirectoryTree(files: FileInfo[]): TreeNode {
 }
 
 function DirectoryTreeNode({ 
-  node, 
-  level = 0,
-  selectedFiles,
-  onToggleDirectory,
-  onToggleFile,
-  expanded,
-  onToggleExpand,
-  searchQuery,
-  processingFiles
-}: { 
-  node: TreeNode;
-  level?: number;
-  selectedFiles: Set<string>;
-  onToggleDirectory: (path: string) => void;
-  onToggleFile: (path: string) => void;
-  expanded: Set<string>;
-  onToggleExpand: (path: string) => void;
-  searchQuery: string;
-  processingFiles: Set<string>;
+    node, 
+    level = 0,
+    selectedFiles,
+    onToggleDirectory,
+    onToggleFile,
+    expanded,
+    onToggleExpand,
+    searchQuery,
+    processingFiles
+  }: { 
+    node: TreeNode;
+    level?: number;
+    selectedFiles: Set<string>;
+    onToggleDirectory: (path: string) => void;
+    onToggleFile: (path: string) => void;
+    expanded: Set<string>;
+    onToggleExpand: (path: string) => void;
+    searchQuery: string;
+    processingFiles: Set<string>;
 }) {
   // Calculate if all files in this directory and subdirectories are selected
   const allSelected = node.fileCount > 0 && 
@@ -217,40 +218,40 @@ function DirectoryTreeNode({
 }
 
 export function DirectoryTree({ 
-  files, 
-  selectedFiles, 
-  onToggleDirectory, 
-  onToggleFile,
-  processingFiles 
-}: DirectoryTreeProps) {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
-  const [searchQuery, setSearchQuery] = useState('');
-  const tree = useMemo(() => buildDirectoryTree(files), [files]);
-
-  const handleToggleExpand = (path: string) => {
-    setExpanded(prev => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
-  };
-
-  return (
-    <div className="space-y-1 max-h-[calc(100vh-400px)] overflow-y-auto">
-      <DirectoryTreeNode
-        node={tree}
-        selectedFiles={selectedFiles}
-        onToggleDirectory={onToggleDirectory}
-        onToggleFile={onToggleFile}
-        expanded={expanded}
-        onToggleExpand={handleToggleExpand}
-        searchQuery={searchQuery}
-        processingFiles={processingFiles}
-      />
-    </div>
-  );
-}
+    files, 
+    selectedFiles, 
+    onToggleDirectory, 
+    onToggleFile,
+    processingFiles,
+    searchQuery = '' // Provide default empty string
+  }: DirectoryTreeProps) {
+    const [expanded, setExpanded] = useState<Set<string>>(new Set(['/']));
+    const tree = useMemo(() => buildDirectoryTree(files), [files]);
+  
+    const handleToggleExpand = (path: string) => {
+      setExpanded(prev => {
+        const next = new Set(prev);
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return next;
+      });
+    };
+  
+    return (
+      <div className="space-y-1 max-h-[calc(100vh-400px)] overflow-y-auto">
+        <DirectoryTreeNode
+          node={tree}
+          selectedFiles={selectedFiles}
+          onToggleDirectory={onToggleDirectory}
+          onToggleFile={onToggleFile}
+          expanded={expanded}
+          onToggleExpand={handleToggleExpand}
+          searchQuery={searchQuery}
+          processingFiles={processingFiles}
+        />
+      </div>
+    );
+  }
