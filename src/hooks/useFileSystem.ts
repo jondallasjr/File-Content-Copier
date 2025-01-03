@@ -61,38 +61,40 @@ export function useFileSystem() {
       setProcessedFiles(0);
       setTotalFiles(0);
       setProcessingFiles(new Set());
-
+  
       const dirHandle = await window.showDirectoryPicker();
       const newFiles: FileInfo[] = [];
       let totalEntries = 0;
       let processedEntries = 0;
-
+  
       const processDirectory = async (handle: FileSystemDirectoryHandle, path = '') => {
         const entries = [];
         for await (const entry of handle.values()) {
           entries.push(entry);
         }
-
+  
         totalEntries += entries.length;
         setTotalFiles(totalEntries);
-
+  
         for (const entry of entries) {
           const entryPath = path ? `${path}/${entry.name}` : entry.name;
           setProcessingFiles(prev => new Set(Array.from(prev).concat(entryPath)));
-
+  
           try {
             if (entry.kind === 'file') {
               const fileHandle = entry as FileSystemFileHandle;
               const file = await fileHandle.getFile();
               const extension = entry.name.split('.').pop()?.toLowerCase() || '(no extension)';
-
+              const isTextFile = file.type.startsWith('text/') || PREFERRED_EXTENSIONS.has(extension);
+            
               newFiles.push({
                 name: entry.name,
                 path: entryPath,
                 handle: fileHandle,
                 extension,
                 size: file.size,
-                isSelectable: true // All files are selectable
+                isSelectable: true, // All files are selectable
+                isTextFile, // Add this property
               });
             } else if (entry.kind === 'directory') {
               const newHandle = await handle.getDirectoryHandle(entry.name);
@@ -109,20 +111,15 @@ export function useFileSystem() {
           }
         }
       };
-
+  
       await processDirectory(dirHandle);
       setFiles(newFiles);
       setSelectedFiles(new Set());
       setCurrentDirectory('/');
-
-      // Auto-select preferred extensions
-      const preferredExtensions = new Set(
-        newFiles
-          .map(file => file.extension)
-          .filter(extension => PREFERRED_EXTENSIONS.has(extension))
-      );
-      setSelectedExtensions(preferredExtensions);
-
+  
+      // Initialize selectedExtensions as an empty set
+      setSelectedExtensions(new Set());
+  
       updateStatus(`Found ${newFiles.length} files`, 'success');
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {

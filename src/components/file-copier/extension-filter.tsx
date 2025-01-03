@@ -63,7 +63,7 @@ export function ExtensionFilter({ files, onFilterChange }: ExtensionFilterProps)
       >
         <span className="truncate">
           {selectedExtensions.size === 0
-            ? "All Files"
+            ? "Extension Filter"
             : `${selectedExtensions.size} ${selectedExtensions.size === 1 ? 'extension' : 'extensions'}`}
         </span>
         <ChevronDown 

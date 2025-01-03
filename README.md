@@ -13,6 +13,23 @@ A secure, client-side tool for copying the contents of multiple text files to yo
 - 🎯 File size limit (5MB) to ensure stable performance
 - 🔐 No data collection or tracking
 
+## Browser Compatibility
+
+This application requires a modern browser that supports the File System Access API:
+- Chrome/Chromium 86+
+- Edge 86+
+- Opera 72+
+
+Currently not supported in:
+- Firefox (in development)
+- Safari (in development)
+
+## Requirements
+
+- Node.js 18.17 or later
+- npm or yarn
+- A compatible browser (see above)
+
 ## Privacy & Security
 
 - All file processing happens locally in your browser
@@ -60,11 +77,42 @@ yarn dev
 
 ## Technical Details
 
-- Built with Next.js and React
+- Built with Next.js 14 and React 18
 - Uses the File System Access API for secure file handling
 - Implements efficient text file detection
 - Responsive design with Tailwind CSS
 - TypeScript for type safety
+- Dark mode support
+
+## Development
+
+To run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+```
+
+To build for production:
+
+```bash
+npm run build
+# or
+yarn build
+```
+
+To run tests:
+
+```bash
+npm run test
+# or
+yarn test
+```
+
+## Contributing
+
+Contributions are welcome! Please read our contributing guidelines before submitting a pull request.
 
 ## License
 
