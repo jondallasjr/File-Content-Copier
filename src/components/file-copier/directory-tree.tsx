@@ -180,11 +180,10 @@ function DirectoryTreeNode({
                                         <Square className="w-4 h-4 text-gray-400" />
                                     )}
                                 </div>
-                                <span className={`py-2 text-sm truncate ${file.isSelectable ? (file.isTextFile ? 'font-mono' : 'font-mono italic text-gray-500') : 'text-gray-400'
-                                    }`}>
+                                <span className={`py-2 text-sm truncate ${file.isSelectable ? (file.isTextFile ? 'font-mono' : 'font-mono italic text-gray-500') : 'text-gray-400'}`}>
                                     {file.name}
                                     {!file.isSelectable && ' (unsupported)'}
-                                    {!file.isTextFile && ' (binary)'}
+                                    {!file.isTextFile && ' (non-text)'}
                                 </span>
                                 {file.size && (
                                     <span className="ml-auto text-gray-400 text-xs pr-4">

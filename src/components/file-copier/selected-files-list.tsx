@@ -22,7 +22,10 @@ export function SelectedFilesList({ files, selectedFiles, onToggleFile }: Select
             className="flex items-center gap-2 w-full px-2 py-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded text-left transition-colors"
           >
             <CheckSquare className="w-4 h-4 text-blue-500 flex-shrink-0" />
-            <span className="truncate flex-grow">{file.path}</span>
+            <span className={`truncate flex-grow ${file.isTextFile ? '' : 'italic text-gray-500'}`}>
+              {file.path}
+              {!file.isTextFile && ' (non-text)'}
+            </span>
             {file.size && (
               <span className="text-xs text-gray-500 flex-shrink-0">
                 {(file.size / 1024).toFixed(1)}KB

@@ -14,13 +14,9 @@ export function ExtensionFilter({ files, onFilterChange }: ExtensionFilterProps)
 
   // Auto-select preferred extensions on mount
   useEffect(() => {
-    const preferredExtensions = new Set(
-      files
-        .map(file => file.extension)
-        .filter(extension => PREFERRED_EXTENSIONS.has(extension))
-    );
-    setSelectedExtensions(preferredExtensions);
-    onFilterChange(preferredExtensions);
+    // Initialize with empty set to select none (all)
+    setSelectedExtensions(new Set());
+    onFilterChange(new Set());
   }, [files, onFilterChange]);
 
   // Get unique extensions from files, ordered by frequency

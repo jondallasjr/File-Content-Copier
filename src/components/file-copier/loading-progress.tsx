@@ -42,7 +42,7 @@ export function LoadingProgress({
           <div className="text-sm text-blue-600 dark:text-blue-300 font-mono">
             {recentFiles.map(file => (
               <div key={file} className="truncate">
-                Analyzing: {file}
+                {file}
               </div>
             ))}
           </div>
