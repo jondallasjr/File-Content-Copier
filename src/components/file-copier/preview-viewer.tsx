@@ -3,11 +3,10 @@ import { FileInfo } from '@/types/files';
 
 interface PreviewViewerProps {
   selectedFiles: Set<string>;
-  files: FileInfo[];
   generatePreviewContent: () => string;
 }
 
-export function PreviewViewer({ selectedFiles, files, generatePreviewContent }: PreviewViewerProps) {
+export function PreviewViewer({ selectedFiles, generatePreviewContent }: PreviewViewerProps) {
   const previewContent = generatePreviewContent();
 
   return (
@@ -17,7 +16,6 @@ export function PreviewViewer({ selectedFiles, files, generatePreviewContent }: 
         {previewContent || 'No files selected.'}
       </pre>
       <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-        Selected files: {Array.from(selectedFiles).join(', ')}
       </div>
     </div>
   );

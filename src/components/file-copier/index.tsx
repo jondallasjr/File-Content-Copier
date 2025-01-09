@@ -142,7 +142,6 @@ export function FileContentCopier() {
       {/* Preview Viewer */}
       <PreviewViewer
         selectedFiles={selectedFiles}
-        files={files}
         generatePreviewContent={generatePreviewContent}
       />
     </div>
