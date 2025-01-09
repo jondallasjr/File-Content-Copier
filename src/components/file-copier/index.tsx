@@ -32,7 +32,7 @@ export function FileContentCopier() {
     selectAll,
     deselectAll,
     generatePreviewContent,
-    updateStatus,
+    updateStatus, // eslint-disable-line @typescript-eslint/no-unused-vars
   } = useFileSystem();
 
   // Filter files based on extension, search query, and ignored folders

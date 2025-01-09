@@ -16,6 +16,9 @@ export function PreviewViewer({ selectedFiles, files, generatePreviewContent }: 
       <pre className="text-sm whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
         {previewContent || 'No files selected.'}
       </pre>
+      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+        Selected files: {Array.from(selectedFiles).join(', ')}
+      </div>
     </div>
   );
 }
