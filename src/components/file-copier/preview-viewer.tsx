@@ -1,12 +1,10 @@
 import React from 'react';
-import { FileInfo } from '@/types/files';
 
 interface PreviewViewerProps {
-  selectedFiles: Set<string>;
   generatePreviewContent: () => string;
 }
 
-export function PreviewViewer({ selectedFiles, generatePreviewContent }: PreviewViewerProps) {
+export function PreviewViewer({ generatePreviewContent }: PreviewViewerProps) {
   const previewContent = generatePreviewContent();
 
   return (
@@ -15,8 +13,6 @@ export function PreviewViewer({ selectedFiles, generatePreviewContent }: Preview
       <pre className="text-sm whitespace-pre-wrap break-words max-h-64 overflow-y-auto">
         {previewContent || 'No files selected.'}
       </pre>
-      <div className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-      </div>
     </div>
   );
 }
