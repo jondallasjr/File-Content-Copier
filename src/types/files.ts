@@ -6,7 +6,8 @@ export interface FileInfo {
   size?: number;
   directory?: string;
   isSelectable: boolean;
-  isTextFile: boolean; 
+  isTextFile: boolean;
+  content?: string;
 }
 
 export interface Status {

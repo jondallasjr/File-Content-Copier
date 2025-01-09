@@ -8,6 +8,8 @@ import { Welcome } from './welcome';
 import { ExtensionFilter } from './extension-filter';
 import { SearchBox } from './search-box';
 import { LoadingProgress } from './loading-progress';
+import { SettingsPanel } from './settings-panel';
+import { PreviewViewer } from './preview-viewer';
 
 export function FileContentCopier() {
   const [extensionFilters, setExtensionFilters] = useState<Set<string>>(new Set());
@@ -21,19 +23,30 @@ export function FileContentCopier() {
     processingFiles,
     totalFiles,
     processedFiles,
+    ignoredFolders,
+    setIgnoredFolders,
     handleFolderSelect,
     toggleFile,
     toggleDirectory,
     copySelected,
     selectAll,
-    deselectAll
+    deselectAll,
+    generatePreviewContent,
+    updateStatus,
   } = useFileSystem();
 
+  // Filter files based on extension, search query, and ignored folders
   const filteredFiles = files.filter(file => {
     if (!file.isSelectable) return false;
 
+    // Check if the file is in an ignored folder
+    if (ignoredFolders.some(folder => file.path.includes(`/${folder}/`))) return false;
+
+    // Check if the file matches the selected extensions
     const matchesExtension = extensionFilters.size === 0 ||
       extensionFilters.has(file.extension || '(no extension)');
+
+    // Check if the file matches the search query
     const matchesSearch = !searchQuery ||
       file.path.toLowerCase().includes(searchQuery.toLowerCase());
 
@@ -44,6 +57,16 @@ export function FileContentCopier() {
     <div className="max-w-6xl mx-auto p-4">
       <Welcome />
 
+      {/* Header with Settings Panel */}
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-bold">File Content Copier</h1>
+        <SettingsPanel
+          ignoredFolders={ignoredFolders}
+          onUpdateIgnoredFolders={setIgnoredFolders}
+        />
+      </div>
+
+      {/* Action Buttons */}
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <ActionButtons
           onFolderSelect={handleFolderSelect}
@@ -56,6 +79,7 @@ export function FileContentCopier() {
         />
       </div>
 
+      {/* Loading Progress */}
       {loading && totalFiles > 0 && (
         <LoadingProgress
           totalFiles={totalFiles}
@@ -64,8 +88,10 @@ export function FileContentCopier() {
         />
       )}
 
+      {/* Status Alert */}
       {status.message && <StatusAlert status={status} />}
 
+      {/* Main Grid Layout */}
       <div className="grid grid-cols-12 gap-4">
         {/* Directory Tree Section - 6 columns */}
         <div className="col-span-6 border rounded dark:border-gray-700">
@@ -112,6 +138,13 @@ export function FileContentCopier() {
           </div>
         </div>
       </div>
+
+      {/* Preview Viewer */}
+      <PreviewViewer
+        selectedFiles={selectedFiles}
+        files={files}
+        generatePreviewContent={generatePreviewContent}
+      />
     </div>
   );
 }

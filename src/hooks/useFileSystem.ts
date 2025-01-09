@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { FileInfo, Status } from '@/types/files';
 import { PREFERRED_EXTENSIONS } from '@/lib/constants';
 
@@ -7,13 +7,33 @@ const STATUS_TIMEOUT = 3000;
 export function useFileSystem() {
   const [files, setFiles] = useState<FileInfo[]>([]);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
-  const [selectedExtensions, setSelectedExtensions] = useState<Set<string>>(new Set());
   const [status, setStatus] = useState<Status>({ message: '', type: 'info' });
   const [loading, setLoading] = useState(false);
-  const [currentDirectory, setCurrentDirectory] = useState<string>('/');
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
   const [totalFiles, setTotalFiles] = useState(0);
   const [processedFiles, setProcessedFiles] = useState(0);
+  const [ignoredFolders, setIgnoredFolders] = useState<string[]>(['node_modules', '.next']);
+
+  // Load ignored folders from localStorage on mount
+  useEffect(() => {
+    const savedIgnoredFolders = localStorage.getItem('ignoredFolders');
+    if (savedIgnoredFolders) {
+      setIgnoredFolders(JSON.parse(savedIgnoredFolders));
+    }
+  }, []);
+
+  // Save ignored folders to localStorage when they change
+  useEffect(() => {
+    localStorage.setItem('ignoredFolders', JSON.stringify(ignoredFolders));
+  }, [ignoredFolders]);
+
+  // Helper function to check if a path is in an ignored folder
+  const isPathIgnored = useCallback(
+    (path: string) => {
+      return ignoredFolders.some(folder => path.includes(`/${folder}/`) || path.startsWith(`${folder}/`));
+    },
+    [ignoredFolders]
+  );
 
   const updateStatus = useCallback((message: string, type: Status['type'] = 'info') => {
     setStatus({ message, type });
@@ -22,39 +42,7 @@ export function useFileSystem() {
     }
   }, []);
 
-  // Helper function to get all files under a directory path (including subdirectories)
-  const getFilesInDirectory = useCallback((directory: string) => {
-    return files.filter(file => {
-      const dirPath = directory === '/' ? '' : directory;
-      return file.path.startsWith(dirPath + '/');
-    });
-  }, [files]);
-
-  // Helper function to get immediate files in a directory (no subdirectories)
-  const getImmediateFilesInDirectory = useCallback((directory: string) => {
-    return files.filter(file => {
-      const dirPath = directory === '/' ? '' : directory;
-      const relativePath = file.path.slice(dirPath.length + 1);
-      return file.path.startsWith(dirPath + '/') && !relativePath.includes('/');
-    });
-  }, [files]);
-
-  // Helper function to get all subdirectories under a directory
-  const getSubdirectories = useCallback((directory: string) => {
-    const dirs = new Set<string>();
-    files.forEach(file => {
-      const dirPath = directory === '/' ? '' : directory;
-      if (file.path.startsWith(dirPath + '/')) {
-        const relativePath = file.path.slice(dirPath.length + 1);
-        const parts = relativePath.split('/');
-        if (parts.length > 1) {
-          dirs.add(dirPath + '/' + parts[0]);
-        }
-      }
-    });
-    return Array.from(dirs);
-  }, [files]);
-
+  // Handle folder selection
   const handleFolderSelect = useCallback(async () => {
     try {
       setLoading(true);
@@ -79,6 +67,14 @@ export function useFileSystem() {
 
         for (const entry of entries) {
           const entryPath = path ? `${path}/${entry.name}` : entry.name;
+
+          // Skip if the entry is in an ignored folder
+          if (isPathIgnored(entryPath)) {
+            processedEntries++;
+            setProcessedFiles(processedEntries);
+            continue;
+          }
+
           setProcessingFiles(prev => new Set(Array.from(prev).concat(entryPath)));
 
           try {
@@ -87,6 +83,7 @@ export function useFileSystem() {
               const file = await fileHandle.getFile();
               const extension = entry.name.split('.').pop()?.toLowerCase() || '(no extension)';
               const isTextFile = file.type.startsWith('text/') || PREFERRED_EXTENSIONS.has(extension);
+              const content = isTextFile ? await file.text() : ''; // Read file content
 
               newFiles.push({
                 name: entry.name,
@@ -96,6 +93,7 @@ export function useFileSystem() {
                 size: file.size,
                 isSelectable: true,
                 isTextFile,
+                content, // Add content to FileInfo
               });
             } else if (entry.kind === 'directory') {
               const newHandle = await handle.getDirectoryHandle(entry.name);
@@ -115,9 +113,6 @@ export function useFileSystem() {
 
       await processDirectory(dirHandle);
       setFiles(newFiles);
-      setCurrentDirectory('/');
-      setSelectedExtensions(new Set());
-
       updateStatus(`Found ${newFiles.length} files`, 'success');
     } catch (error) {
       if (error instanceof Error && error.name !== 'AbortError') {
@@ -127,41 +122,61 @@ export function useFileSystem() {
       setLoading(false);
       setProcessingFiles(new Set());
     }
-  }, [updateStatus]);
+  }, [updateStatus, isPathIgnored]);
 
-  const toggleFile = useCallback((path: string) => {
-    setSelectedFiles(prev => {
-      const next = new Set(prev);
-      if (next.has(path)) {
-        next.delete(path);
-      } else {
-        next.add(path);
-      }
-      return next;
-    });
+  // Toggle selection of a single file
+  const toggleFile = useCallback(
+    (path: string) => {
+      setSelectedFiles(prev => {
+        const next = new Set(prev);
+        if (next.has(path)) {
+          next.delete(path);
+        } else {
+          next.add(path);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  // Toggle selection of all files in a directory (only text files)
+  const toggleDirectory = useCallback(
+    (directory: string) => {
+      setSelectedFiles(prev => {
+        const next = new Set(prev);
+        const directoryFiles = files.filter(file => file.path.startsWith(`${directory}/`) && PREFERRED_EXTENSIONS.has(file.extension));
+
+        // Check if all files in this directory and subdirectories are selected
+        const allSelected = directoryFiles.every(f => prev.has(f.path));
+
+        // Toggle all files in this directory and subdirectories
+        directoryFiles.forEach(file => {
+          if (allSelected) {
+            next.delete(file.path);
+          } else {
+            next.add(file.path);
+          }
+        });
+
+        return next;
+      });
+    },
+    [files]
+  );
+
+  // Select all files (only text files)
+  const selectAll = useCallback(() => {
+    const textFiles = files.filter(file => PREFERRED_EXTENSIONS.has(file.extension));
+    setSelectedFiles(new Set(textFiles.map(f => f.path)));
+  }, [files]);
+
+  // Deselect all files
+  const deselectAll = useCallback(() => {
+    setSelectedFiles(new Set());
   }, []);
 
-  const toggleDirectory = useCallback((directory: string) => {
-    setSelectedFiles(prev => {
-      const next = new Set(prev);
-      const directoryFiles = getFilesInDirectory(directory);
-
-      // Check if all files in this directory and subdirectories are selected
-      const allSelected = directoryFiles.every(f => prev.has(f.path));
-
-      // Toggle all files in this directory and subdirectories
-      directoryFiles.forEach(file => {
-        if (allSelected) {
-          next.delete(file.path);
-        } else {
-          next.add(file.path);
-        }
-      });
-
-      return next;
-    });
-  }, [getFilesInDirectory]);
-
+  // Copy selected files to clipboard
   const copySelected = async () => {
     if (selectedFiles.size === 0) {
       updateStatus('No files selected', 'warning');
@@ -192,35 +207,31 @@ export function useFileSystem() {
     }
   };
 
-  const selectAll = useCallback(() => {
-    setSelectedFiles(new Set(files.map(f => f.path)));
-  }, [files]);
-
-  const deselectAll = useCallback(() => {
-    setSelectedFiles(new Set());
-  }, []);
+  // Generate preview content
+  const generatePreviewContent = useCallback(() => {
+    return files
+      .filter(file => selectedFiles.has(file.path))
+      .map(file => `=== START ${file.path} ===\n${file.content}\n=== END ${file.path} ===\n\n`)
+      .join('');
+  }, [files, selectedFiles]);
 
   return {
     files,
     selectedFiles,
-    selectedExtensions,
-    setSelectedExtensions,
     status,
     loading,
-    currentDirectory,
     processingFiles,
     totalFiles,
     processedFiles,
+    ignoredFolders,
+    setIgnoredFolders,
     handleFolderSelect,
     toggleFile,
     toggleDirectory,
     copySelected,
     selectAll,
     deselectAll,
+    generatePreviewContent,
     updateStatus,
-    setCurrentDirectory,
-    getFilesInDirectory,
-    getImmediateFilesInDirectory,
-    getSubdirectories,
   };
 }
