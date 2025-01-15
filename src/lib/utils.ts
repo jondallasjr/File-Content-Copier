@@ -6,16 +6,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-// Ensure this function is exported
+// Define a proper type for the tree structure
+type TreeNode = {
+  [key: string]: TreeNode;
+};
+
 export function generateFileStructure(files: FileInfo[], selectedFiles: Set<string>): string {
-  const root: Record<string, any> = {};
+  const root: TreeNode = {};
 
   // Build the tree structure
   selectedFiles.forEach((path) => {
     const parts = path.split('/');
     let currentLevel = root;
 
-    parts.forEach((part, index) => {
+    parts.forEach((part) => {
       if (!currentLevel[part]) {
         currentLevel[part] = {};
       }
@@ -24,7 +28,7 @@ export function generateFileStructure(files: FileInfo[], selectedFiles: Set<stri
   });
 
   // Convert the tree to a string representation
-  const buildTree = (node: Record<string, any>, prefix = ''): string => {
+  const buildTree = (node: TreeNode, prefix = ''): string => {
     const keys = Object.keys(node);
     return keys
       .map((key, i) => {

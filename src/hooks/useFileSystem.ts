@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FileInfo, Status } from '@/types/files';
 import { PREFERRED_EXTENSIONS } from '@/lib/constants';
-import { generateFileStructure } from '@/lib/utils';
 
 const STATUS_TIMEOUT = 3000;
 
