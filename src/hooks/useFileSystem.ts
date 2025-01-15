@@ -13,7 +13,10 @@ export function useFileSystem() {
   const [processingFiles, setProcessingFiles] = useState<Set<string>>(new Set());
   const [totalFiles, setTotalFiles] = useState(0);
   const [processedFiles, setProcessedFiles] = useState(0);
-  const [ignoredFolders, setIgnoredFolders] = useState<string[]>(['node_modules', '.next']);
+  const [ignoredFolders, setIgnoredFolders] = useState<string[]>([
+    'node_modules', '.next', '.git', 'dist', 'build', '.vscode', '.idea',
+    'package-lock.json', 'yarn.lock', '.env', '.DS_Store', '*.log'
+  ]);
 
   // Load ignored folders from localStorage on mount
   useEffect(() => {
@@ -146,11 +149,15 @@ export function useFileSystem() {
     (directory: string) => {
       setSelectedFiles(prev => {
         const next = new Set(prev);
-        const directoryFiles = files.filter(file => file.path.startsWith(`${directory}/`) && PREFERRED_EXTENSIONS.has(file.extension));
-
+        const directoryFiles = files.filter(file => 
+          file.path.startsWith(`${directory}/`) && 
+          PREFERRED_EXTENSIONS.has(file.extension) &&
+          !ignoredFolders.some(ignored => file.path.includes(ignored))
+        );
+  
         // Check if all files in this directory and subdirectories are selected
         const allSelected = directoryFiles.every(f => prev.has(f.path));
-
+  
         // Toggle all files in this directory and subdirectories
         directoryFiles.forEach(file => {
           if (allSelected) {
@@ -159,18 +166,27 @@ export function useFileSystem() {
             next.add(file.path);
           }
         });
-
+  
         return next;
       });
     },
-    [files]
+    [files, ignoredFolders]
   );
 
   // Select all files (only text files)
   const selectAll = useCallback(() => {
-    const textFiles = files.filter(file => PREFERRED_EXTENSIONS.has(file.extension));
+    const textFiles = files.filter(file => 
+      PREFERRED_EXTENSIONS.has(file.extension) && 
+      !ignoredFolders.some(ignored => file.path.includes(ignored))
+    );
     setSelectedFiles(new Set(textFiles.map(f => f.path)));
-  }, [files]);
+  }, [files, ignoredFolders]);
+
+  useEffect(() => {
+    if (!loading && processedFiles === totalFiles && totalFiles > 0) {
+      selectAll(); // Automatically select all valid files after processing
+    }
+  }, [loading, processedFiles, totalFiles, selectAll]);
 
   // Deselect all files
   const deselectAll = useCallback(() => {
