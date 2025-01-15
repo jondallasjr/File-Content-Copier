@@ -53,6 +53,8 @@ export function FileContentCopier() {
     return matchesExtension && matchesSearch;
   });
 
+  const [combinedContent, setCombinedContent] = useState<string>('');
+
   return (
     <div className="max-w-6xl mx-auto p-4">
       <Welcome />
@@ -70,7 +72,7 @@ export function FileContentCopier() {
       <div className="mb-4 flex flex-wrap items-center gap-4">
         <ActionButtons
           onFolderSelect={handleFolderSelect}
-          onCopySelected={copySelected}
+          onCopySelected={() => copySelected(combinedContent)} // Pass combinedContent
           onSelectAll={selectAll}
           onDeselectAll={deselectAll}
           selectedCount={selectedFiles.size}
@@ -142,6 +144,9 @@ export function FileContentCopier() {
       {/* Preview Viewer */}
       <PreviewViewer
         generatePreviewContent={generatePreviewContent}
+        selectedFiles={selectedFiles}
+        files={files}
+        onCombinedContentChange={setCombinedContent} // Add this prop
       />
     </div>
   );

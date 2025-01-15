@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { FileInfo, Status } from '@/types/files';
 import { PREFERRED_EXTENSIONS } from '@/lib/constants';
+import { generateFileStructure } from '@/lib/utils';
 
 const STATUS_TIMEOUT = 3000;
 
@@ -176,32 +177,16 @@ export function useFileSystem() {
     setSelectedFiles(new Set());
   }, []);
 
-  // Copy selected files to clipboard
-  const copySelected = async () => {
+  // Copy selected fragments to clipboard
+  const copySelected = async (combinedContent: string) => { // Accept combinedContent as a parameter
     if (selectedFiles.size === 0) {
       updateStatus('No files selected', 'warning');
       return;
     }
-
+  
     try {
-      const contents: string[] = [];
-
-      for (const file of files) {
-        if (selectedFiles.has(file.path)) {
-          try {
-            const fileHandle = await file.handle.getFile();
-            const content = await fileHandle.text();
-            contents.push(`=== START ${file.path} ===\n${content}\n=== END ${file.path} ===\n\n`);
-          } catch (error) {
-            updateStatus(`Error reading ${file.path}: ${error instanceof Error ? error.message : 'Unknown error'}`, 'warning');
-          }
-        }
-      }
-
-      if (contents.length > 0) {
-        await navigator.clipboard.writeText(contents.join(''));
-        updateStatus(`Copied ${contents.length} files to clipboard`, 'success');
-      }
+      await navigator.clipboard.writeText(combinedContent); // Copy the combined content
+      updateStatus(`Copied ${selectedFiles.size} files to clipboard`, 'success');
     } catch (error) {
       updateStatus(`Error copying to clipboard: ${error instanceof Error ? error.message : 'Unknown error'}`, 'error');
     }
